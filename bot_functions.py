@@ -176,41 +176,31 @@ class VKBot:
 
     def select_and_send_top_photo(self, user_id):
         """send top 3 photo"""
-        id_nums = {}
         fetch_id = get_user_id()
-        for i in range(len(fetch_id)):
-            id_nums[i] = fetch_id[randrange(1, len(fetch_id))][0]
+        fetch_seen_id = get_seen_id()
+        id_num = fetch_id[randrange(0, len(fetch_id))][0]
+        if tuple(id_num) not in fetch_seen_id:
             params = {'access_token': user_token,
                       'v': '5.131',
-                      'owner_id': id_nums.get(i),
+                      'owner_id': id_num,
                       'album_id': 'profile',
                       'extended': 1
                       }
             response = self.vk_user.method('photos.get', params)
-            photo_info = {}
-            for x in range(len(response['items'])):
-                photo_info[response['items'][x]['likes']['count']] = {'owner_id': response['items'][x]['owner_id'],
-                                                                      'photo_id': response['items'][x]['id'],
-                                                                      'likes': response['items'][x]['likes']['count'],
-                                                                      'url': response['items'][x]['sizes'][-1]['url']}
-            top_three_photo = list(sorted(photo_info.items(), reverse=True)[:3:])
-        self.write_msg(user_id, f"vk.com/id{top_three_photo[0][1]['owner_id']}")
-        for i in range(len(top_three_photo)):
-            self.vk_group.method("messages.send", {'user_id': user_id,
-                                                   'random_id': randrange(10 ** 7),
-                                                   'attachment': f"photo{top_three_photo[i][1]['owner_id']}_"
-                                                                 f"{top_three_photo[i][1]['photo_id']}"
-                                                   })
-        return f"Отправка фото завершена"
-
-    # def send_photo(self, user_id):
-    #     """send photo"""
-    #     photo_data = self.select_photo()
-    #     for i in range(len(photo_data)):
-    #         photo_id = photo_data
-    #         self.write_msg(user_id, f"vk.com/id{photo_data[i][1]['owner_id']}")
-    #         self.vk_group.method("messages.send", {'user_id': user_id,
-    #                                                'random_id': randrange(10 ** 7),
-    #                                                'attachment': f"photo{photo_data[i][1]['owner_id']}_"
-    #                                                              f"{photo_id[i][1]['photo_id']}"
-    #                                                })
+            s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
+            s.reverse()
+            top_three_photo = s[:3:]
+            self.write_msg(user_id, f"vk.com/id{top_three_photo[0]['owner_id']}")
+            for i in range(len(top_three_photo)):
+                self.vk_group.method("messages.send", {'user_id': user_id,
+                                                       'random_id': randrange(10 ** 7),
+                                                       'attachment': f"photo{top_three_photo[i]['owner_id']}_"
+                                                                     f"{top_three_photo[i]['id']}"
+                                                       })
+            vk_id = str(top_three_photo[0]['owner_id'])
+            vk_link = f"vk.com/id{top_three_photo[0]['owner_id']}"
+            if tuple(vk_id) not in fetch_seen_id:
+                add_seen_user_info(vk_id, vk_link)
+            else:
+                return
+        return print("Отправка фото завершена")

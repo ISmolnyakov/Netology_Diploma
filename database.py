@@ -44,12 +44,11 @@ def add_user_info(first_name, last_name, vk_id, vk_link):
         )
 
 
-def add_seen_user_info(vk_id, vk_link, offset):
+def add_seen_user_info(vk_id, vk_link):
     with connection.cursor() as cursor:
         cursor.execute(
             f"""INSERT INTO seen_users (vk_id, vk_link) 
-            VALUES ('{vk_id}', '{vk_link}')
-            OFFSET {offset};"""
+            VALUES ('{vk_id}', '{vk_link}');"""
         )
 
 
@@ -57,6 +56,14 @@ def get_user_id():
     with connection.cursor() as cursor:
         cursor.execute(
             f"""SELECT vk_id FROM users; """
+        )
+        return cursor.fetchall()
+
+
+def get_seen_id():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"""SELECT vk_id FROM seen_users; """
         )
         return cursor.fetchall()
 
