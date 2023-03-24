@@ -1,7 +1,6 @@
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from random import randrange
-from config import *
 import datetime
 from database import *
 
@@ -128,25 +127,27 @@ class VKBot:
 
     def minimum_age(self, user_id):
         """Set minimum age for search"""
-        self.write_msg(user_id, 'Укажите минимальный возраст для поиска(Минимальный возраст 16+)')
-        for event in self.longpoll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                search_min_age = event.text
-                if int(search_min_age) < 16:
-                    self.write_msg(user_id, 'Указанный возраст меньше необходимого')
-                    break
-                return search_min_age
+        while True:
+            self.write_msg(user_id, 'Укажите минимальный возраст для поиска(Минимальный возраст 16+)')
+            for event in self.longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    search_min_age = event.text
+                    if int(search_min_age) < 16:
+                        self.write_msg(user_id, 'Указанный возраст меньше необходимого.\n Укажите возраст от 16 лет')
+                        continue
+                    return search_min_age
 
     def maximum_age(self, user_id):
         """Set maximum age for search"""
-        self.write_msg(user_id, 'Укажите максимальный возраст для поиска(Максимальный возраст 90)')
-        for event in self.longpoll.listen():
-            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                search_max_age = event.text
-                if int(search_max_age) > 90:
-                    self.write_msg(user_id, 'Указанный возраст превышает максимальный')
-                    return
-                return search_max_age
+        while True:
+            self.write_msg(user_id, 'Укажите максимальный возраст для поиска(Максимальный возраст 90)')
+            for event in self.longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    search_max_age = event.text
+                    if int(search_max_age) > 90 :
+                        self.write_msg(user_id, 'Указанный возраст превышает максимальный.\n Укажите возраст до 90 лет')
+                        continue
+                    return search_max_age
 
     def collect_users_to_db(self, user_id):
         """find users info and add to database"""
@@ -176,13 +177,13 @@ class VKBot:
 
     def select_and_send_top_photo(self, user_id):
         """send top 3 photo"""
-        fetch_id = get_user_id()
+        fetch_data = get_user_data()
         fetch_seen_id = get_seen_id()
-        id_num = fetch_id[randrange(0, len(fetch_id))][0]
-        if tuple(id_num) not in fetch_seen_id:
+        match_data = fetch_data[randrange(0, len(fetch_data))]
+        if match_data[2] not in fetch_seen_id:
             params = {'access_token': user_token,
                       'v': '5.131',
-                      'owner_id': id_num,
+                      'owner_id': match_data[2],
                       'album_id': 'profile',
                       'extended': 1
                       }
@@ -190,16 +191,17 @@ class VKBot:
             s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
             s.reverse()
             top_three_photo = s[:3:]
-            self.write_msg(user_id, f"vk.com/id{top_three_photo[0]['owner_id']}")
+            self.write_msg(user_id, f"{match_data[0]} {match_data[1]}\n"
+                                    f"{match_data[3]}")
             for i in range(len(top_three_photo)):
                 self.vk_group.method("messages.send", {'user_id': user_id,
                                                        'random_id': randrange(10 ** 7),
                                                        'attachment': f"photo{top_three_photo[i]['owner_id']}_"
                                                                      f"{top_three_photo[i]['id']}"
                                                        })
-            vk_id = str(top_three_photo[0]['owner_id'])
-            vk_link = f"vk.com/id{top_three_photo[0]['owner_id']}"
-            if tuple(vk_id) not in fetch_seen_id:
+            vk_id = match_data[2]
+            vk_link = match_data[3]
+            if vk_id not in fetch_seen_id:
                 add_seen_user_info(vk_id, vk_link)
             else:
                 return

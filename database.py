@@ -52,10 +52,10 @@ def add_seen_user_info(vk_id, vk_link):
         )
 
 
-def get_user_id():
+def get_user_data():
     with connection.cursor() as cursor:
         cursor.execute(
-            f"""SELECT vk_id FROM users; """
+            f"""SELECT first_name, last_name, vk_id, vk_link FROM users; """
         )
         return cursor.fetchall()
 

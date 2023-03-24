@@ -1,7 +1,5 @@
 from bot_functions import *
-# from bot_functions2 import *
 from database import *
-from config import *
 
 bot = VKBot()
 creating_database()
