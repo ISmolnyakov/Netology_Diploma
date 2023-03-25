@@ -159,8 +159,8 @@ class VKBot:
                   'city': self.find_city(user_id),
                   'fields': 'is_closed, id, first_name, last_name',
                   'status': '1' or '6',
-                  'count': 10,
-                  'offset': 0}
+                  'count': 100,
+                  'offset': offset}
         req = self.vk_user.method("users.search", params)
         fetch_user_data = get_user_data()
         try:

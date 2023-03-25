@@ -3,6 +3,7 @@ user_token = ''
 
 user = 'postgres'
 password = ''
-db_name = ''
+db_name = 'vk_users_db'
 
-offset = 0
+
+offset = 100
