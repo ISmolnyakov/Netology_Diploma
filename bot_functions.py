@@ -159,17 +159,23 @@ class VKBot:
                   'city': self.find_city(user_id),
                   'fields': 'is_closed, id, first_name, last_name',
                   'status': '1' or '6',
-                  'count': 50}
+                  'count': 10,
+                  'offset': 0}
         req = self.vk_user.method("users.search", params)
+        fetch_user_data = get_user_data()
         try:
-            list_1 = req['items']
-            for person_dict in list_1:
+            users_info = req['items']
+            id_nums = []
+            for data in fetch_user_data:
+                id_nums.append(data[0])
+            for person_dict in users_info:
                 if not person_dict.get('is_closed'):
-                    first_name = person_dict.get('first_name')
-                    last_name = person_dict.get('last_name')
-                    vk_id = str(person_dict.get('id'))
-                    vk_link = 'vk.com/id' + str(person_dict.get('id'))
-                    add_user_info(first_name, last_name, vk_id, vk_link)
+                    if str(person_dict.get('id')) not in id_nums:
+                        full_name = f"{person_dict.get('first_name')} {person_dict.get('last_name')}"
+                        vk_id = person_dict.get('id')
+                        add_user_info(vk_id, full_name)
+                    else:
+                        continue
                 else:
                     continue
         except KeyError:
@@ -179,30 +185,34 @@ class VKBot:
         """send top 3 photo"""
         fetch_data = get_user_data()
         fetch_seen_id = get_seen_id()
+        see_id = []
+        for data in fetch_seen_id:
+            see_id.append(data[0])
         match_data = fetch_data[randrange(0, len(fetch_data))]
-        if match_data[2] not in fetch_seen_id:
+        vk_id = match_data[0]
+        if vk_id not in see_id:
             params = {'access_token': user_token,
                       'v': '5.131',
-                      'owner_id': match_data[2],
+                      'owner_id': vk_id,
                       'album_id': 'profile',
                       'extended': 1
                       }
             response = self.vk_user.method('photos.get', params)
-            s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
-            s.reverse()
-            top_three_photo = s[:3:]
-            self.write_msg(user_id, f"{match_data[0]} {match_data[1]}\n"
-                                    f"{match_data[3]}")
-            for i in range(len(top_three_photo)):
-                self.vk_group.method("messages.send", {'user_id': user_id,
-                                                       'random_id': randrange(10 ** 7),
-                                                       'attachment': f"photo{top_three_photo[i]['owner_id']}_"
-                                                                     f"{top_three_photo[i]['id']}"
-                                                       })
-            vk_id = match_data[2]
-            vk_link = match_data[3]
-            if vk_id not in fetch_seen_id:
-                add_seen_user_info(vk_id, vk_link)
-            else:
-                return
+            try:
+                s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
+                s.reverse()
+                top_three_photo = s[:3:]
+                self.write_msg(user_id, f"{match_data[1]}\n"
+                                        f"vk.com/id{match_data[0]}")
+                for i in range(len(top_three_photo)):
+                    self.vk_group.method("messages.send", {'user_id': user_id,
+                                                           'random_id': randrange(10 ** 7),
+                                                           'attachment': f"photo{top_three_photo[i]['owner_id']}_"
+                                                                         f"{top_three_photo[i]['id']}"
+                                                           })
+                add_seen_user_info(vk_id)
+            except KeyError:
+                print("No response from VK")
+        else:
+            return
         return print("Отправка фото завершена")
