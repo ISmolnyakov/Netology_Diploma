@@ -9,17 +9,6 @@ connection = psycopg2.connect(
 connection.autocommit = True
 
 
-def create_table_users():
-    with connection.cursor() as cur:
-        cur.execute(
-            """CREATE TABLE IF NOT EXISTS users(
-                id serial,
-                vk_id varchar(20) NOT NULL PRIMARY KEY,
-                full_name varchar(90) NOT NULL);"""
-        )
-        print("[DB Status] Table USERS was created.")
-
-
 def creat_table_seen_users():
     with connection.cursor() as cur:
         cur.execute(
@@ -31,16 +20,6 @@ def creat_table_seen_users():
     print("[DB Status] Table SEEN_USERS was created.")
 
 
-def add_user_info(vk_id, full_name):
-    with connection.cursor() as cur:
-        cur.execute(
-            f"""
-            INSERT INTO users (vk_id, full_name)
-            VALUES ('{vk_id}', '{full_name}');
-            """
-        )
-
-
 def add_seen_user_info(vk_id):
     with connection.cursor() as cursor:
         cursor.execute(
@@ -49,22 +28,13 @@ def add_seen_user_info(vk_id):
         )
 
 
-def get_user_data():
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"""SELECT vk_id, full_name FROM users; """
+def check_seen_id(id_num):
+    with connection.cursor() as cur:
+        cur.execute(
+            """SELECT vk_id FROM seen_users WHERE vk_id=%s; """, (id_num, )
         )
-        return cursor.fetchall()
-
-
-def get_seen_id():
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"""SELECT vk_id FROM seen_users; """
-        )
-        return cursor.fetchall()
+        return cur.fetchone()
 
 
 def creating_database():
-    create_table_users()
     creat_table_seen_users()

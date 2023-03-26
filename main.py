@@ -1,4 +1,5 @@
 from bot_functions import *
+# from bot_functions2 import *
 from database import *
 
 bot = VKBot()
@@ -19,14 +20,11 @@ for event in bot.longpoll.listen():
             bot.write_msg(user_id, f'Привет, {bot.name(user_id)}')
         elif text == 'начать':
             bot.write_msg(user_id, f'{bot.name(user_id)}, давай найдём тебе пару')
-            bot.collect_users_to_db(user_id)
-            bot.write_msg(event.user_id, f'Нашёл для тебя пару')
-            bot.select_and_send_top_photo(user_id)
+            bot.send_top_photo(user_id)
             bot.write_msg(event.user_id, f'Введите "далее" для продолжения поиска')
         elif text == 'далее':
             bot.write_msg(event.user_id, f'Ищу следующую пару')
-            bot.write_msg(event.user_id, f'Нашёл ещё человека')
-            bot.select_and_send_top_photo(user_id)
+            bot.send_top_photo(user_id)
             bot.write_msg(event.user_id, f'Введите "далее" для продолжения поиска')
         elif text == 'стоп':
             bot.write_msg(user_id, 'Завершаю работу')

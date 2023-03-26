@@ -132,8 +132,9 @@ class VKBot:
             for event in self.longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                     search_min_age = event.text
-                    if int(search_min_age) < 16:
-                        self.write_msg(user_id, 'Указанный возраст меньше необходимого.\n Укажите возраст от 16 лет')
+                    if int(search_min_age) < 16 or int(search_min_age) > 90:
+                        self.write_msg(user_id, 'Указанный возраст не подходит для поиска.\n Укажите возраст от 16 до '
+                                                '90')
                         continue
                     return search_min_age
 
@@ -144,36 +145,34 @@ class VKBot:
             for event in self.longpoll.listen():
                 if event.type == VkEventType.MESSAGE_NEW and event.to_me:
                     search_max_age = event.text
-                    if int(search_max_age) > 90 :
-                        self.write_msg(user_id, 'Указанный возраст превышает максимальный.\n Укажите возраст до 90 лет')
+                    if int(search_max_age) > 90 or int(search_max_age) < 16:
+                        self.write_msg(user_id, 'Указанный возраст не подходит для поиска.\n Укажите возраст от 16 до '
+                                                '90')
                         continue
                     return search_max_age
 
-    def collect_users_to_db(self, user_id):
-        """find users info and add to database"""
+    def check_match_id(self, user_id):
+        """find match and check if it was already seen"""
         params = {'access_token': user_token,
                   'v': '5.131',
                   'sex': self.get_sex(user_id),
+                  'city': self.find_city(user_id),
                   'age_from': self.minimum_age(user_id),
                   'age_to': self.maximum_age(user_id),
-                  'city': self.find_city(user_id),
-                  'fields': 'is_closed, id, first_name, last_name',
+                  'fields': 'is_closed, id',
                   'status': '1' or '6',
                   'count': 100,
                   'offset': offset}
         req = self.vk_user.method("users.search", params)
-        fetch_user_data = get_user_data()
         try:
             users_info = req['items']
-            id_nums = []
-            for data in fetch_user_data:
-                id_nums.append(data[0])
-            for person_dict in users_info:
-                if not person_dict.get('is_closed'):
-                    if str(person_dict.get('id')) not in id_nums:
-                        full_name = f"{person_dict.get('first_name')} {person_dict.get('last_name')}"
-                        vk_id = person_dict.get('id')
-                        add_user_info(vk_id, full_name)
+            for x in range(len(users_info)):
+                rand_user = users_info[randrange(0, len(users_info))]
+                if not rand_user.get('is_closed'):
+                    vk_id = rand_user.get('id')
+                    seen_check = check_seen_id(str(vk_id))
+                    if not seen_check:
+                        return vk_id
                     else:
                         continue
                 else:
@@ -181,38 +180,48 @@ class VKBot:
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
-    def select_and_send_top_photo(self, user_id):
+    def select_top_photo(self, user_id):
+        """select top 3 photo"""
+        match_id = self.check_match_id(user_id)
+        params = {'access_token': user_token,
+                  'v': '5.131',
+                  'owner_id': match_id,
+                  'album_id': 'profile',
+                  'extended': 1
+                  }
+        response = self.vk_user.method('photos.get', params)
+        try:
+            s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
+            s.reverse()
+            top_three_photo = s[:3:]
+            return top_three_photo, match_id
+        except KeyError:
+            print("No response from VK")
+
+    def send_top_photo(self, user_id):
         """send top 3 photo"""
-        fetch_data = get_user_data()
-        fetch_seen_id = get_seen_id()
-        see_id = []
-        for data in fetch_seen_id:
-            see_id.append(data[0])
-        match_data = fetch_data[randrange(0, len(fetch_data))]
-        vk_id = match_data[0]
-        if vk_id not in see_id:
-            params = {'access_token': user_token,
-                      'v': '5.131',
-                      'owner_id': vk_id,
-                      'album_id': 'profile',
-                      'extended': 1
-                      }
-            response = self.vk_user.method('photos.get', params)
-            try:
-                s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
-                s.reverse()
-                top_three_photo = s[:3:]
-                self.write_msg(user_id, f"{match_data[1]}\n"
-                                        f"vk.com/id{match_data[0]}")
-                for i in range(len(top_three_photo)):
-                    self.vk_group.method("messages.send", {'user_id': user_id,
-                                                           'random_id': randrange(10 ** 7),
-                                                           'attachment': f"photo{top_three_photo[i]['owner_id']}_"
-                                                                         f"{top_three_photo[i]['id']}"
-                                                           })
-                add_seen_user_info(vk_id)
-            except KeyError:
-                print("No response from VK")
-        else:
-            return
-        return print("Отправка фото завершена")
+        match_data = self.select_top_photo(user_id)
+        params = {'access_token': user_token,
+                  'v': '5.131',
+                  'user_ids': match_data[1],
+                  'fields': 'first_name, last_name',
+                  }
+        req = self.vk_user.method("users.get", params)
+        try:
+            for user_dict in req:
+                full_name = f"{user_dict['first_name']} {user_dict['last_name']}"
+            self.write_msg(user_id, f"Нашёл тебе пару:\n"
+                                    f"{full_name}\n"
+                                    f"vk.com/id{match_data[1]}")
+            photos = match_data[0]
+            for i in range(len(photos)):
+                self.vk_group.method("messages.send", {'user_id': user_id,
+                                                       'random_id': randrange(10 ** 7),
+                                                       'attachment': f"photo{photos[i]['owner_id']}_"
+                                                                     f"{photos[i]['id']}"
+                                                       })
+            add_seen_user_info(match_data[1])
+            return print("Отправка фото завершена")
+        except KeyError:
+            print("No response from VK")
+
