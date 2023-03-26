@@ -20,11 +20,13 @@ for event in bot.longpoll.listen():
             bot.write_msg(user_id, f'Привет, {bot.name(user_id)}')
         elif text == 'начать':
             bot.write_msg(user_id, f'{bot.name(user_id)}, давай найдём тебе пару')
-            bot.send_top_photo(user_id)
+            min_age = bot.minimum_age(user_id)
+            max_age = bot.maximum_age(user_id)
+            bot.search(user_id, min_age, max_age)
             bot.write_msg(event.user_id, f'Введите "далее" для продолжения поиска')
         elif text == 'далее':
             bot.write_msg(event.user_id, f'Ищу следующую пару')
-            bot.send_top_photo(user_id)
+            bot.search(user_id, min_age, max_age)
             bot.write_msg(event.user_id, f'Введите "далее" для продолжения поиска')
         elif text == 'стоп':
             bot.write_msg(user_id, 'Завершаю работу')

@@ -151,14 +151,14 @@ class VKBot:
                         continue
                     return search_max_age
 
-    def check_match_id(self, user_id):
-        """find match and check if it was already seen"""
+    def check_match_id(self, user_id, sex, city, min_age, max_age):
+        """find users info and check if it was already seen"""
         params = {'access_token': user_token,
                   'v': '5.131',
-                  'sex': self.get_sex(user_id),
-                  'city': self.find_city(user_id),
-                  'age_from': self.minimum_age(user_id),
-                  'age_to': self.maximum_age(user_id),
+                  'sex': sex,
+                  'city': city,
+                  'age_from': min_age,
+                  'age_to': max_age,
                   'fields': 'is_closed, id',
                   'status': '1' or '6',
                   'count': 100,
@@ -180,9 +180,8 @@ class VKBot:
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
-    def select_top_photo(self, user_id):
+    def select_top_photo(self, match_id):
         """select top 3 photo"""
-        match_id = self.check_match_id(user_id)
         params = {'access_token': user_token,
                   'v': '5.131',
                   'owner_id': match_id,
@@ -194,16 +193,15 @@ class VKBot:
             s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
             s.reverse()
             top_three_photo = s[:3:]
-            return top_three_photo, match_id
+            return top_three_photo
         except KeyError:
             print("No response from VK")
 
-    def send_top_photo(self, user_id):
+    def send_top_photo(self, user_id, match_id, photos_list):
         """send top 3 photo"""
-        match_data = self.select_top_photo(user_id)
         params = {'access_token': user_token,
                   'v': '5.131',
-                  'user_ids': match_data[1],
+                  'user_ids': match_id,
                   'fields': 'first_name, last_name',
                   }
         req = self.vk_user.method("users.get", params)
@@ -212,16 +210,21 @@ class VKBot:
                 full_name = f"{user_dict['first_name']} {user_dict['last_name']}"
             self.write_msg(user_id, f"Нашёл тебе пару:\n"
                                     f"{full_name}\n"
-                                    f"vk.com/id{match_data[1]}")
-            photos = match_data[0]
-            for i in range(len(photos)):
+                                    f"vk.com/id{match_id}")
+            for i in range(len(photos_list)):
                 self.vk_group.method("messages.send", {'user_id': user_id,
                                                        'random_id': randrange(10 ** 7),
-                                                       'attachment': f"photo{photos[i]['owner_id']}_"
-                                                                     f"{photos[i]['id']}"
+                                                       'attachment': f"photo{photos_list[i]['owner_id']}_"
+                                                                     f"{photos_list[i]['id']}"
                                                        })
-            add_seen_user_info(match_data[1])
+            add_seen_user_info(match_id)
             return print("Отправка фото завершена")
         except KeyError:
             print("No response from VK")
 
+    def search(self, user_id, min_age, max_age):
+        search_sex = self.get_sex(user_id)
+        search_city = self.find_city(user_id)
+        match_id = self.check_match_id(user_id, search_sex, search_city, min_age, max_age)
+        photo_list = self.select_top_photo(match_id)
+        self.send_top_photo(user_id, match_id, photo_list)
