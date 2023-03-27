@@ -18,64 +18,42 @@ class VKBot:
                                                'message': message,
                                                'random_id': randrange(10 ** 7)})
 
-    def name(self, user_id):
-        """определение имени пользователя"""
+    def get_user_data(self, user_id):
         params = {'access_token': user_token,
                   'user_ids': user_id,
+                  'fields': 'sex, city, bdate',
                   'v': '5.131'}
-        result_data = self.vk_group.method("users.get", params)
         try:
-            for i in result_data:
-                for key, value in i.items():
-                    first_name = i.get('first_name')
-                    return first_name
+            result_data = self.vk_group.method("users.get", params)
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена, введите токен в переменную - user_token')
+        for i in result_data:
+            user_name = i.get('first_name')
+            bdate = i.get('bdate')
+            sex = i.get('sex')
+            city_info = i.get('city')
+            if len(city_info) == 0:
+                self.write_msg(user_id, 'Введите название вашего города: ')
+                for event in self.longpoll.listen():
+                    if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                        city_name = event.text
+                        id_city = self.find_city_id_by_name(user_id, city_name)
+                        if id_city != '' or id_city is not None:
+                            return user_name, sex, bdate, str(id_city)
+                        else:
+                            break
+            else:
+                id_city = city_info['id']
+        return user_name, sex, bdate, id_city
 
-    def get_sex(self, user_id):
+    def get_opposit_sex(self, user_sex):
         """find opposite sex"""
-        params = {'access_token': group_token,
-                  'v': '5.131',
-                  'user_ids': user_id,
-                  'fields': 'sex'}
-        result_data = self.vk_group.method("users.get", params)
-        try:
-            for i in result_data:
-                if i.get('sex') == 2:
-                    opposite_sex = 1
-                    return opposite_sex
-                elif i.get('sex') == 1:
-                    opposite_sex = 2
-                    return opposite_sex
-        except KeyError:
-            self.vk_group.method(user_id, 'Ошибка получения токена, введите токен в переменную - user_token')
-
-    def find_city(self, user_id):
-        """find user city id"""
-        params = {'access_token': group_token,
-                  'v': '5.131',
-                  'user_ids': user_id,
-                  'fields': 'city'}
-        response = self.vk_group.method("users.get", params)
-        try:
-            for town in response:
-                if 'city' in town:
-                    city = town.get('city')
-                    id = str(city.get('id'))
-                    return id
-                elif 'city' not in town:
-                    self.write_msg(user_id, 'Введите название вашего города: ')
-                    for event in self.longpoll.listen():
-                        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                            city_name = event.text
-                            id_city = self.find_city_id_by_name(user_id, city_name)
-                            if id_city != '' or id_city is not None:
-                                return str(id_city)
-                            else:
-                                break
-        except KeyError:
-            self.write_msg(user_id, 'Ошибка получения токена')
-        return city
+        if user_sex == 2:
+            opposite_sex = 1
+            return opposite_sex
+        elif user_sex == 1:
+            opposite_sex = 2
+            return opposite_sex
 
     def find_city_id_by_name(self, user_id, city_name):
         """find city id if not in users data"""
@@ -97,34 +75,23 @@ class VKBot:
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
-    def check_age(self, user_id):
-        """user age check"""
-        params = {'access_token': user_token,
-                  'user_ids': user_id,
-                  'fields': 'bdate',
-                  'v': '5.131'}
-        req = self.vk_group.method("users.get", params)
-        try:
-            for i in req:
-                date = i.get('bdate')
-                date_list = date.split('.')
-                if len(date_list) == 3:
-                    year = int(date_list[2])
-                    year_now = int(datetime.date.today().year)
-                    age = year_now - year
+    def check_age(self, user_id, bdate):
+        date_list = bdate.split('.')
+        if len(date_list) == 3:
+            year = int(date_list[2])
+            year_now = int(datetime.date.today().year)
+            age = year_now - year
+            return age
+        elif len(date_list) == 2 or bdate == '':
+            self.write_msg(user_id, 'Введите ваш возраста (16+): ')
+            for event in self.longpoll.listen():
+                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                    age = event.text
+                    if int(age) < 16:
+                        self.write_msg(user_id, 'Минимальный возраст - 16+')
+                        self.write_msg(user_id, 'Возвращаюсь в начало')
+                        break
                     return age
-                elif len(date_list) == 2 or date not in req:
-                    self.write_msg(user_id, 'Введите ваш возраста (16+): ')
-                    for event in self.longpoll.listen():
-                        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                            age = event.text
-                            if int(age) < 16:
-                                self.write_msg(user_id, 'Минимальный возраст - 16+')
-                                self.write_msg(user_id, 'Возвращаюсь в начало')
-                                break
-                            return age
-        except KeyError:
-            self.write_msg(user_id, 'Ошибка получения токена')
 
     def minimum_age(self, user_id):
         """Set minimum age for search"""
@@ -221,11 +188,10 @@ class VKBot:
                                                                  f"{photos_list[i]['id']}"
                                                    })
         add_seen_user_info(match_id)
-        return print("Отправка фото завершена")
+        return print(f"Пара найдена. Фото пары отправлены. ID {match_id} записан в таблицу seen_id.")
 
-    def search(self, user_id, min_age, max_age):
-        search_sex = self.get_sex(user_id)
-        search_city = self.find_city(user_id)
-        match_id = self.check_match_id(user_id, search_sex, search_city, min_age, max_age)
+    def search(self, user_id, min_age, max_age, search_sex, id_city):
+        opposite_sex = self.get_opposit_sex(search_sex)
+        match_id = self.check_match_id(user_id, opposite_sex, id_city, min_age, max_age)
         photo_list = self.select_top_photo(user_id, match_id)
         self.send_top_photo(user_id, match_id, photo_list)

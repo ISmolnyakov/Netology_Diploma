@@ -17,16 +17,19 @@ for event in bot.longpoll.listen():
                                    'Далее - продолжить поиск\n'
                                    'Стоп - остановить бота')
         elif text == 'привет':
-            bot.write_msg(user_id, f'Привет, {bot.name(user_id)}')
+            user_name = bot.get_user_data(user_id)[0]
+            bot.write_msg(user_id, f'Привет, {user_name}')
         elif text == 'начать':
-            bot.write_msg(user_id, f'{bot.name(user_id)}, давай найдём тебе пару')
+            user_name, searcher_sex, searcher_bdate, searcher_id_city = bot.get_user_data(user_id)
+            bot.check_age(user_id, searcher_bdate)
+            bot.write_msg(user_id, f'{user_name}, давай найдём тебе пару')
             min_age = bot.minimum_age(user_id)
             max_age = bot.maximum_age(user_id)
-            bot.search(user_id, min_age, max_age)
+            bot.search(user_id, min_age, max_age, searcher_sex, searcher_id_city)
             bot.write_msg(event.user_id, f'Введите "далее" для продолжения поиска')
         elif text == 'далее':
             bot.write_msg(event.user_id, f'Ищу следующую пару')
-            bot.search(user_id, min_age, max_age)
+            bot.search(user_id, min_age, max_age, searcher_sex, searcher_id_city)
             bot.write_msg(event.user_id, f'Введите "далее" для продолжения поиска')
         elif text == 'стоп':
             bot.write_msg(user_id, 'Завершаю работу')
