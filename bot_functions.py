@@ -2,7 +2,8 @@ import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 from random import randrange
 import datetime
-from database import *
+from config import group_token, user_token, offset
+from database import check_seen_id, add_seen_user_info
 
 
 class VKBot:

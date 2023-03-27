@@ -1,6 +1,6 @@
 from bot_functions import *
 # from bot_functions2 import *
-from database import *
+from database import creating_database
 
 bot = VKBot()
 creating_database()
