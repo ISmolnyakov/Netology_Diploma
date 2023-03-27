@@ -163,24 +163,24 @@ class VKBot:
                   'status': '1' or '6',
                   'count': 100,
                   'offset': offset}
-        req = self.vk_user.method("users.search", params)
         try:
-            users_info = req['items']
-            for x in range(len(users_info)):
-                rand_user = users_info[randrange(0, len(users_info))]
-                if not rand_user.get('is_closed'):
-                    vk_id = rand_user.get('id')
-                    seen_check = check_seen_id(str(vk_id))
-                    if not seen_check:
-                        return vk_id
-                    else:
-                        continue
-                else:
-                    continue
+            req = self.vk_user.method("users.search", params)
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
+        users_info = req['items']
+        for x in range(len(users_info)):
+            rand_user = users_info[randrange(0, len(users_info))]
+            if not rand_user.get('is_closed'):
+                vk_id = rand_user.get('id')
+                seen_check = check_seen_id(str(vk_id))
+                if not seen_check:
+                    return vk_id
+                else:
+                    continue
+            else:
+                continue
 
-    def select_top_photo(self, match_id):
+    def select_top_photo(self, user_id, match_id):
         """select top 3 photo"""
         params = {'access_token': user_token,
                   'v': '5.131',
@@ -188,14 +188,14 @@ class VKBot:
                   'album_id': 'profile',
                   'extended': 1
                   }
-        response = self.vk_user.method('photos.get', params)
         try:
-            s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
-            s.reverse()
-            top_three_photo = s[:3:]
-            return top_three_photo
+            response = self.vk_user.method('photos.get', params)
         except KeyError:
-            print("No response from VK")
+            self.write_msg(user_id, 'Ошибка получения токена')
+        s = sorted(response['items'], key=lambda likes: int(likes['likes']['count']))
+        s.reverse()
+        top_three_photo = s[:3:]
+        return top_three_photo
 
     def send_top_photo(self, user_id, match_id, photos_list):
         """send top 3 photo"""
@@ -204,27 +204,27 @@ class VKBot:
                   'user_ids': match_id,
                   'fields': 'first_name, last_name',
                   }
-        req = self.vk_user.method("users.get", params)
         try:
-            for user_dict in req:
-                full_name = f"{user_dict['first_name']} {user_dict['last_name']}"
-            self.write_msg(user_id, f"Нашёл тебе пару:\n"
-                                    f"{full_name}\n"
-                                    f"vk.com/id{match_id}")
-            for i in range(len(photos_list)):
-                self.vk_group.method("messages.send", {'user_id': user_id,
-                                                       'random_id': randrange(10 ** 7),
-                                                       'attachment': f"photo{photos_list[i]['owner_id']}_"
-                                                                     f"{photos_list[i]['id']}"
-                                                       })
-            add_seen_user_info(match_id)
-            return print("Отправка фото завершена")
+            req = self.vk_user.method("users.get", params)
         except KeyError:
-            print("No response from VK")
+            self.write_msg(user_id, 'Ошибка получения токена')
+        for user_dict in req:
+            full_name = f"{user_dict['first_name']} {user_dict['last_name']}"
+        self.write_msg(user_id, f"Нашёл тебе пару:\n"
+                                f"{full_name}\n"
+                                f"vk.com/id{match_id}")
+        for i in range(len(photos_list)):
+            self.vk_group.method("messages.send", {'user_id': user_id,
+                                                   'random_id': randrange(10 ** 7),
+                                                   'attachment': f"photo{photos_list[i]['owner_id']}_"
+                                                                 f"{photos_list[i]['id']}"
+                                                   })
+        add_seen_user_info(match_id)
+        return print("Отправка фото завершена")
 
     def search(self, user_id, min_age, max_age):
         search_sex = self.get_sex(user_id)
         search_city = self.find_city(user_id)
         match_id = self.check_match_id(user_id, search_sex, search_city, min_age, max_age)
-        photo_list = self.select_top_photo(match_id)
+        photo_list = self.select_top_photo(user_id, match_id)
         self.send_top_photo(user_id, match_id, photo_list)
